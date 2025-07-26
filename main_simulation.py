@@ -18,6 +18,17 @@ class VendingMachineSimulation:
         self.db = SimulationDatabase()
         self.log_state()
 
+    def get_day_of_week(self):
+        """Get current day of the week"""
+        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        return days[self.current_time.weekday()]
+    
+    def get_month(self):
+        """Get current month name"""
+        months = ['January', 'February', 'March', 'April', 'May', 'June',
+                 'July', 'August', 'September', 'October', 'November', 'December']
+        return months[self.current_time.month - 1]
+    
     def log_state(self):
         """Log current state to database"""
         self.db.log_state(self.simulation_id, self.current_time, self.balance)
@@ -28,7 +39,11 @@ class VendingMachineSimulation:
         return self.current_time
     
     def get_day_report(self):
-        print(f"Day {self.current_time.strftime('%Y-%m-%d %H:%M UTC')} - Balance: ${self.balance}, Inventory: {self.inventory}")
+        day_of_week = self.get_day_of_week()
+        month = self.get_month()
+        day = self.current_time.day
+        year = self.current_time.year
+        print(f"{day_of_week}, {month} {day}, {year} - Balance: ${self.balance}, Inventory: {self.inventory}")
 
     def run_day(self):
         # Advance to next day first
