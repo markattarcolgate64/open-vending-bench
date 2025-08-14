@@ -45,3 +45,12 @@ class SimulationDatabase:
     def close(self):
         """Close database connection"""
         self.conn.close()
+
+def clear_database():
+    """Clear all data from the simulation database"""
+    db = SimulationDatabase()
+    cursor = db.conn.cursor()
+    cursor.execute('DELETE FROM simulation_state')
+    db.conn.commit()
+    print("Database cleared successfully")
+    db.close()

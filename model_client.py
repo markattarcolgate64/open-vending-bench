@@ -82,17 +82,18 @@ def call_claude_with_fallback(prompt: str) -> str:
         return "Mock response: -1.0,2.00,10"  # Example format for economic analysis
 
 
-def call_model_litellm(prompt: str, model: str = "claude-3-5-sonnet-20241022", system_prompt: str = "") -> str:
+def call_model_litellm(prompt: str, model: str = "claude-3-5-sonnet-20241022", system_prompt: str = "", tools: list = None) -> dict:
     """
-    Call model using LiteLLM unified interface
+    Call model using LiteLLM unified interface with optional tools support
     
     Args:
         prompt: The text prompt to send to the model
         model: Model identifier (e.g., "claude-3-5-sonnet-20241022", "gpt-4", "openai/gpt-3.5-turbo")
         system_prompt: System prompt for the model
+        tools: List of tool schemas for function calling
     
     Returns:
-        The model's response as a string
+        Dict containing response content and any tool calls
     """
     try:
         messages = []
@@ -100,18 +101,38 @@ def call_model_litellm(prompt: str, model: str = "claude-3-5-sonnet-20241022", s
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
         
-        response = litellm.completion(
-            model=model,
-            messages=messages,
-            max_tokens=1000
-        )
+        completion_params = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": 1000,
+        }
         
-        return response.choices[0].message.content
+        # Add tools if provided
+        if tools:
+            completion_params["tools"] = tools
+            
+        response = litellm.completion(**completion_params)
+        
+        message = response.choices[0].message
+        tool_calls = getattr(message, 'tool_calls', None)
+        
+        # Restrict to single tool call only (VendingBench pattern)
+        if tool_calls and len(tool_calls) > 1:
+            print(f"🔧 Multiple tool calls detected ({len(tool_calls)}), using first only")
+            tool_calls = [tool_calls[0]]
+        
+        return {
+            "content": message.content,
+            "tool_calls": tool_calls
+        }
         
     except Exception as e:
-        return f"LiteLLM request failed: {str(e)}"
+        return {
+            "content": f"LiteLLM request failed: {str(e)}",
+            "tool_calls": None
+        }
 
-def call_model(prompt: str, model_type: str = "claude-4-sonnet", system_prompt: str = "") -> str:
+def call_model(prompt: str, model_type: str = "claude-4-sonnet", system_prompt: str = "", tools: list = None):
     """
     Universal model client using LiteLLM for unified interface
     
@@ -119,9 +140,10 @@ def call_model(prompt: str, model_type: str = "claude-4-sonnet", system_prompt: 
         prompt: The text prompt to send to the model
         model_type: Which model to use ("claude", "gpt-4", "gpt-3.5", etc.)
         system_prompt: System prompt for the model
+        tools: List of tool schemas for function calling
     
     Returns:
-        The model's response as a string
+        str if no tools provided, dict with content and tool_calls if tools provided
     """
     
     # Map common model types to LiteLLM identifiers
@@ -141,10 +163,17 @@ def call_model(prompt: str, model_type: str = "claude-4-sonnet", system_prompt: 
     litellm_model = model_mapping.get(model_type.lower(), model_type)
     
     try:
-        return call_model_litellm(prompt, litellm_model, system_prompt)
+        result = call_model_litellm(prompt, litellm_model, system_prompt, tools)
+        
+        # If no tools, return just the content for backward compatibility
+        if not tools:
+            return result["content"]
+        
+        return result
+        
     except Exception as e:
-        # Fallback to direct Claude API if LiteLLM fails
-        if model_type.lower() in ["claude", "claude-sonnet"]:
+        # Fallback to direct Claude API if LiteLLM fails (but only for text responses)
+        if model_type.lower() in ["claude", "claude-sonnet"] and not tools:
             print(f"LiteLLM failed ({e}), falling back to direct Claude API")
             return call_claude_model(prompt, system_prompt)
         else:

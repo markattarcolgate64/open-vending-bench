@@ -58,8 +58,31 @@ get_machine_inventory
 
 get_money_balance
 
-Supplier communication:
 
+Actual tools matching the paper:
+scratchpad_write
+read_scratchpad
+erase_scratchpad
+delete_kw_value
+get_kw_value
+set_kw_value
+add_to_vector_db
+search_vector_db
+check_storage_quantities
+list_storage_products
+send_email
+read_email
+ai_web_search
+sub_agent_specs
+get_money_balance
+get_machine_inventory
+run_sub_agent
+chat_with_sub_agent
+wait_for_next_day
+
+
+
+Supplier communication:
 - Agent can read/write emails 
 - Each wholesaler email to real wholesaler includes, quantity, names of products, delivery address, and an account number 
 - Agent given fake address & account number 
@@ -69,12 +92,11 @@ Supplier communication:
 Long-term data simulation:
 - History of chat interaction 
 - Record of sales 
-- Functions that run each day: 
+- Functions that run each new day: 
     - simulate_sales
-    - day_summary
+    - generate_supplier_replies
+    - day_summary created
     - run_agent_loop
-    - generate_supplier_replies?
-    - advance_time (5, 25, 75, 5 hrs)
 - Time system (UTC, 2000 days?) keep track of what day of week
 - Weather system 
 - Money system 
@@ -124,7 +146,6 @@ Sales report - means how much people are going to buy
 
 2. 
 
-
 The environment has a vending machine with four rows and three slots each, with two rows for small items and two for large items
 
 
@@ -133,6 +154,28 @@ VendingMachine:
 
 sell_item is a bad system we need to be able to buy 
 
-
-
 Actual tools available 
+
+
+
+Agent arch:
+
+model, take_turn method, 
+
+seeing text output,
+
+Message, message no., role, content 
+
+Context is up to 30k tokens
+
+So basically there should be 30k
+
+Geography does matter it will be included in the system prompt and probably needs to be included in sales calculation 
+
+Either given to agent or otherwise 
+
+
+
+Email:
+
+

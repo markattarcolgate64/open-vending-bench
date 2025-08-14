@@ -1,7 +1,8 @@
 from typing import List, Dict
 from model_client import call_model
 from collections import deque
-
+from datetime import timedelta
+from tools import TOOLS_LIST, execute_tool
 LOOP_PROMPT = "Continue on your mission by using your tools"
 SYSTEM_PROMPT = """
 You are an autonomous vending machine operator. You are given a vending machine and you need to sell items to the customers. Your goal is to make money over time. 
@@ -10,9 +11,10 @@ class VendingMachineAgent:
     def __init__(self, name: str = "VendingBot", max_context_tokens: int = 30000, simulation_ref=None):
         self.name = name
         self.conversation_history: List[Dict[str, str]] = []
-        self.tools = []  # Placeholder for future tools
+        self.tools = TOOLS_LIST  # Placeholder for future tools
         self.max_context_tokens = max_context_tokens
         self.simulation = simulation_ref  # Reference to parent simulation
+        self.last_6am_time = None  # Track last 6 AM timestamp we processed
         
         # Sliding window for context management
         self.context_window: deque = deque()
@@ -79,6 +81,30 @@ class VendingMachineAgent:
         
         return "\n\n".join(prompt_parts)
         
+    def is_new_day_at_6am(self):
+        """Check if we've passed a 6 AM threshold since last check"""
+        if not self.simulation:
+            return False
+        
+        current_time = self.simulation.get_current_time()
+        
+        # Calculate the 6 AM time for the current day
+        current_6am = current_time.replace(hour=6, minute=0, second=0, microsecond=0)
+        
+        # If this is the first check, initialize with current day's 6 AM
+        if self.last_6am_time is None:
+            self.last_6am_time = current_6am
+            # If current time is at or past 6 AM, trigger new day
+            return current_time >= current_6am
+        
+        # Check if we've passed the last recorded 6 AM time
+        if (current_time >= self.last_6am_time + timedelta(days=1)):
+            # Update to the next day's 6 AM for future checks
+            self.last_6am_time = current_6am + timedelta(days=1)
+            return True
+        
+        return False
+
     def run_agent(self, context: str = "", loop_prompt: str = LOOP_PROMPT, system_prompt: str = SYSTEM_PROMPT) -> str:
         """
         Run the agent with given context and prompt
@@ -91,6 +117,16 @@ class VendingMachineAgent:
         Returns:
             The agent's response
         """
+        # Check if it's 6 AM and handle daily processing
+        if self.simulation and self.is_new_day_at_6am():
+            # New day processing - delegate to simulation for business logic
+            context = self.simulation.handle_new_day()
+            
+            print(f"\n🌅 NEW DAY REPORT")
+            print("=" * 50)
+            print(context)
+            print("=" * 50)
+        
         # Build the full prompt
         full_prompt = self._build_full_prompt(context, loop_prompt, system_prompt)
         
@@ -98,25 +134,38 @@ class VendingMachineAgent:
         user_entry = {
             "role": "user",
             "content": loop_prompt,
-            "context": context,
             "timestamp": self._get_timestamp()
         }
         self.conversation_history.append(user_entry)
+        user_entry["context"] = context
         self._add_to_context_window(user_entry)
         
-        # Get response from model
-        response = call_model(full_prompt)
+        # Get response from model with tools
+        model_result = call_model(full_prompt, tools=TOOLS_LIST)
+        
+        response_text = model_result.get("content", "")
+        tool_calls = model_result.get("tool_calls", None)
+        
+        # Handle tool call if present (single tool only)
+        if tool_calls:
+            tool_call = tool_calls[0]  # Only one due to model_client restriction
+            
+            # Execute the tool using centralized function
+            tool_result = execute_tool(tool_call, self.simulation)
+            
+            # Append tool result message to response
+            response_text += tool_result["message"]
         
         # Store the agent's response in history
         assistant_entry = {
             "role": "assistant", 
-            "content": response,
+            "content": response_text,
             "timestamp": self._get_timestamp(),
         }
         self.conversation_history.append(assistant_entry)
         self._add_to_context_window(assistant_entry)
         
-        return response
+        return response_text
         
     def _get_timestamp(self) -> str:
         """Get current timestamp for logging"""

@@ -4,27 +4,32 @@ import math
 from typing import Dict, List, Tuple
 from model_client import call_model
 from weather import get_weather_sales_multiplier
+from functools import cache
+from vending_machine import VendingMachine, Item
 
-def analyze_single_item(item_name: str, item_price: float, item_size: str, context: str = "") -> Tuple[float, float, int]:
+def analyze_single_item(item_name: str, item_price: float, item_size: str, quantity: int, context: str = "") -> Tuple[float, float, int]:
     """
     Analyze a single item and return (price_elasticity, reference_price, base_sales)
     """
-    prompt = create_single_item_prompt(item_name, item_price, item_size, context)
+    prompt = create_single_item_prompt(item_name, item_price, item_size, quantity, context)
     response = call_model(prompt)
     return parse_single_item_response(response, item_price)
 
-def generate_customer_behavior(vending_machine_items: Dict, context: str = "") -> Dict:
+def generate_customer_behavior(vending_machine_slots: Dict, context: str = "") -> Dict:
     """
     Generate customer behavior metrics for each item in the vending machine
     Returns: Dict with item_name -> {price_elasticity, reference_price, base_sales}
     """
     behavior_data = {}
     
-    for slot_id, item_data in vending_machine_items.items():
-        item_name = item_data['item']
+    for _, slot in vending_machine_slots.items():
+        item_data = slot['item']
+        if item_data is None:
+            continue
+        item_name = item_data.name  
         if item_name not in behavior_data:  # Avoid duplicates if same item in multiple slots
             price_elasticity, reference_price, base_sales = analyze_single_item(
-                item_name, item_data['price'], item_data['size'], context
+                item_name, item_data.price, item_data.size, slot['quantity'], context
             )
             behavior_data[item_name] = {
                 "price_elasticity": price_elasticity,
@@ -34,7 +39,7 @@ def generate_customer_behavior(vending_machine_items: Dict, context: str = "") -
     
     return behavior_data
 
-def create_single_item_prompt(item_name: str, item_price: float, item_size: str, context: str) -> str:
+def create_single_item_prompt(item_name: str, item_price: float, item_size: str, quantity: int, context: str) -> str:
     """Create prompt for analyzing a single item"""
     
     prompt = f"""You are an economics expert analyzing customer behavior for a vending machine item.
@@ -45,6 +50,7 @@ ITEM TO ANALYZE:
 - Name: {item_name}
 - Current Price: ${item_price}
 - Size Category: {item_size}
+- Available Quantity: {quantity} units in stock
 
 Calculate these three values for this specific item:
 
@@ -57,6 +63,7 @@ Consider factors like:
 - Location context  
 - Competitive alternatives
 - Price sensitivity of typical customers
+- Available quantity (sales cannot exceed {quantity} units per day)
 
 Return ONLY three numbers separated by commas in this format:
 price_elasticity,reference_price,base_sales
@@ -79,7 +86,7 @@ def parse_single_item_response(response: str, fallback_price: float) -> Tuple[fl
         # Fallback to defaults if parsing fails
         return -1.0, fallback_price, 10
 
-def calculate_daily_sales(item_name: str, current_price: float, behavior_metrics: Dict) -> int:
+def calculate_item_sales(item_name: str, current_price: float, behavior_metrics: Dict) -> int:
     """Calculate expected daily sales based on current price and behavior metrics"""
     if item_name not in behavior_metrics:
         return 0
@@ -102,6 +109,7 @@ def calculate_daily_sales(item_name: str, current_price: float, behavior_metrics
     # Return as integer (can't sell fractional items)
     return max(0, int(round(expected_sales)))
 
+@cache 
 def calculate_choice_multiplier(num_products: int) -> float:
     """
     Calculate choice multiplier using sigmoid function
@@ -133,6 +141,7 @@ def calculate_choice_multiplier(num_products: int) -> float:
     # Ensure floor of 0.5
     return max(0.5, multiplier)
 
+@cache 
 def get_month_multiplier(month: int) -> float:
     """
     Get sales multiplier based on month (1-12)
@@ -154,6 +163,7 @@ def get_month_multiplier(month: int) -> float:
     }
     return multipliers.get(month, 1.00)
 
+@cache 
 def get_day_of_week_multiplier(day_of_week: int) -> float:
     """
     Get sales multiplier based on day of week (0=Monday, 6=Sunday)
@@ -170,7 +180,7 @@ def get_day_of_week_multiplier(day_of_week: int) -> float:
     }
     return multipliers.get(day_of_week, 1.00)
 
-def calculate_final_sales(item_name: str, current_price: float, behavior_metrics: Dict, vending_machine_items: Dict, weather: str = "cloudy", month: int = 6, day_of_week: int = 2) -> int:
+def calculate_item_final_sales(item_data: Item, behavior_metrics: Dict, unique_products: int, weather: str = "cloudy", month: int = 6, day_of_week: int = 2) -> int:
     """
     Calculate final sales with choice multiplier, weather, month, and day-of-week effects applied
     
@@ -187,15 +197,9 @@ def calculate_final_sales(item_name: str, current_price: float, behavior_metrics
         Final expected daily sales including all multipliers
     """
     # Get base sales from price elasticity
-    base_sales = calculate_daily_sales(item_name, current_price, behavior_metrics)
-    
-    # Count unique products in machine
-    unique_products = set()
-    for slot_data in vending_machine_items.values():
-        unique_products.add(slot_data['item'])
-    
-    num_products = len(unique_products)
-    choice_multiplier = calculate_choice_multiplier(num_products)
+    item_sales = calculate_item_sales(item_data.name, item_data.price, behavior_metrics)
+
+    choice_multiplier = calculate_choice_multiplier(unique_products)
     
     # Get all multipliers
     weather_multiplier = get_weather_sales_multiplier(weather)
@@ -203,6 +207,33 @@ def calculate_final_sales(item_name: str, current_price: float, behavior_metrics
     day_multiplier = get_day_of_week_multiplier(day_of_week)
     
     # Apply all multipliers
-    final_sales = base_sales * choice_multiplier * weather_multiplier * month_multiplier * day_multiplier
+    final_sales = item_sales *  choice_multiplier * weather_multiplier * month_multiplier * day_multiplier
     
     return max(0, int(round(final_sales)))
+
+def calculate_total_sales_and_report(vending_machine: VendingMachine, weather: str = "cloudy", month: int = 6, day_of_week: int = 2) -> Tuple[int, str]:
+    """
+    Calculate total sales for all items in the vending machine
+    """
+    vending_machine_slots = vending_machine.get_inventory()
+    unique_products = set()
+
+    behavior_metrics = generate_customer_behavior(vending_machine_slots)
+    report = "Total Sales Report:\n"
+    for _, slot in vending_machine_slots.items():
+        if slot['item'] is not None:
+            unique_products.add(slot['item'].name)
+    unique_products = len(unique_products)
+    total_sales = 0
+    for slot_id, slot in vending_machine_slots.items():
+        if slot['item'] is None:
+            continue
+        item_data = slot['item']
+        final_sales = calculate_item_final_sales(item_data, behavior_metrics, unique_products, weather, month, day_of_week)
+        vending_machine.sell_item(slot_id, final_sales)
+        total_sales += final_sales * item_data.price
+        report += f"{item_data.name}: ${final_sales}\n"
+    
+    report += f"\nTotal Sales: ${total_sales}"
+
+    return total_sales, report

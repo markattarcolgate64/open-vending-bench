@@ -1,11 +1,102 @@
 """
 This file contains the tools that the primary agent can use to take actions.
-
-Tools: Financial cash flow tool, email tool, search tool (perplexity), skip one day tool, 
-
-
-
-
-
-
 """
+from datetime import datetime, timedelta
+
+
+def wait_for_next_day(simulation_ref):
+    """
+    Advance simulation time to 6:00 AM of the next day
+    
+    Args:
+        simulation_ref: Reference to the VendingMachineSimulation instance
+    
+    Returns:
+        dict: Result containing success status and new day information
+    """
+    # Get current time from simulation
+    current_time = simulation_ref.get_current_time()
+    # Calculate next day's 6:00 AM
+    next_day = current_time.date() + timedelta(days=1)
+    next_6am = datetime.combine(next_day, current_time.time().replace(hour=6, minute=0, second=0, microsecond=0))
+    next_6am = next_6am.replace(tzinfo=current_time.tzinfo)
+    
+    # Update simulation time
+    simulation_ref.current_time = next_6am    
+    return f"Moved day forward to {next_6am}"
+
+# Tools schema for LiteLLM function calling
+TOOLS_LIST = [
+    {
+        "type": "function",
+        "function": {
+            "name": "wait_for_next_day",
+            "description": "Advance simulation time to 6:00 AM of the next day. This will process daily fees, update weather, and provide a new day report.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    }
+]
+
+# Tools function mapping
+TOOLS_FUNCTIONS = {
+    "wait_for_next_day": wait_for_next_day
+}
+
+def execute_tool(tool_call, simulation_ref):
+    """
+    Execute a single tool call and return formatted result
+    
+    Args:
+        tool_call: LiteLLM tool call object with function.name and function.arguments
+        simulation_ref: Reference to the VendingMachineSimulation instance
+        
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,  # For appending to agent response
+            "console_output": str  # For printing to console
+        }
+    """
+    import json
+    
+    function_name = tool_call.function.name
+    arguments = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}
+    
+    console_output = f"🔧 Executing tool: {function_name}"
+    print(console_output)
+    
+    # Execute the tool
+    if function_name in TOOLS_FUNCTIONS:
+        try:
+            tool_result = TOOLS_FUNCTIONS[function_name](simulation_ref, **arguments)
+            success_msg = f"✅ Tool result: {tool_result}"
+            print(success_msg)
+            
+            return {
+                "success": True,
+                "message": f"\n\n[Tool executed: {function_name} - {tool_result}]",
+                "console_output": f"{console_output}\n{success_msg}"
+            }
+            
+        except Exception as e:
+            error_msg = f"❌ Tool execution failed: {e}"
+            print(error_msg)
+            
+            return {
+                "success": False,
+                "message": f"\n\n[Tool error: {function_name} - Tool execution failed: {e}]",
+                "console_output": f"{console_output}\n{error_msg}"
+            }
+    else:
+        error_msg = f"❌ Unknown tool: {function_name}"
+        print(error_msg)
+        
+        return {
+            "success": False,
+            "message": f"\n\n[Tool error: Unknown tool {function_name}]",
+            "console_output": f"{console_output}\n{error_msg}"
+        }

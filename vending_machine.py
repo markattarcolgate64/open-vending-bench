@@ -59,16 +59,7 @@ class VendingMachine:
     
     def get_inventory(self):
         """Get current inventory state"""
-        inventory = {}
-        for slot_id, slot in self.slots.items():
-            if slot['item'] is not None:
-                inventory[slot_id] = {
-                    'item': slot['item'].name,
-                    'quantity': slot['quantity'],
-                    'price': slot['item'].price,
-                    'size': slot['item'].size
-                }
-        return inventory
+        return self.slots
     
     def get_available_slots(self, size_type):
         """Get available slots for a specific size type"""
@@ -78,8 +69,8 @@ class VendingMachine:
                 available.append(slot_id)
         return available
     
-    def sell_item(self, slot_id):
-        """Sell one item from the specified slot"""
+    def sell_item(self, slot_id, quantity=1):
+        """Sell items from the specified slot"""
         if slot_id not in self.slots:
             return None
         
@@ -87,16 +78,19 @@ class VendingMachine:
         if slot['quantity'] <= 0 or slot['item'] is None:
             return None
         
-        # Remove one item
-        slot['quantity'] -= 1
+        # Can't sell more than available
+        actual_quantity = min(quantity, slot['quantity'])
+        
+        # Remove items
+        slot['quantity'] -= actual_quantity
         
         # If slot is empty, clear the item
         if slot['quantity'] == 0:
             item = slot['item']
             slot['item'] = None
-            return item
+            return item, actual_quantity
         
-        return slot['item']
+        return slot['item'], actual_quantity
     
     def print_machine(self):
         """Print ASCII diagram of the vending machine"""

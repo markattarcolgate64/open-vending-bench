@@ -9,7 +9,7 @@ STARTING_BALANCE = 500
 DAILY_FEE = 2
 
 class VendingMachineSimulation:
-    def __init__(self):
+    def __init__(self, store_state=True):
         self.simulation_id = str(uuid.uuid4())
         self.balance = STARTING_BALANCE
         self.inventory = {}
@@ -25,6 +25,7 @@ class VendingMachineSimulation:
         self.db = SimulationDatabase()
         # Initialize agent
         self.agent = VendingMachineAgent("VendingBot", simulation_ref=self)
+        self.store_state = store_state
         self.log_state()
 
     def get_current_time(self):
@@ -96,58 +97,35 @@ ACTION REQUIRED: Continue managing your vending machine business.
             return "Summer"
         else:
             return "Fall"
-
-    def run_day(self):
-        """Legacy method - advance to next day with daily updates"""
-        # Advance to next day first
-        self.advance_time(days=1)
-        self.days_passed += 1
         
-        # Generate new weather for the day
+    def handle_new_day(self):
+        """Handle daily processing and return daily report"""
+        # New day processing
+        if self.message_count > 1:  # Don't increment on first run
+            self.days_passed += 1
+            self.balance -= DAILY_FEE
+
+        print(f"🌅 NEW DAY REACHED")
+            
+        # Generate weather for the new day
         self.current_weather = generate_next_weather(self.current_time.month, self.current_weather)
         
-        self.balance = self.balance - DAILY_FEE
-        self.log_state()
-        print(self.get_day_report())
-        
-    def is_new_day_at_6am(self):
-        """Check if it's 6:00 AM (daily report time)"""
-        return self.current_time.hour == 6 and self.current_time.minute == 0
+        # Get daily report for agent context
+        return self.get_day_report()
         
     def run_agent(self):
-        """Run the agent for one action, providing daily report at 6 AM"""
+        """Run the agent for one action"""
         self.message_count += 1
         
-        # Check if it's 6 AM (new day anchor time)
-        if self.is_new_day_at_6am():
-            # New day processing
-            if self.message_count > 1:  # Don't increment on first run
-                self.days_passed += 1
-                self.balance -= DAILY_FEE
-                
-            # Generate weather for the new day
-            self.current_weather = generate_next_weather(self.current_time.month, self.current_weather)
-            
-            # Get daily report for agent context
-            daily_report = self.get_day_report()
-            
-            print(f"\n🌅 NEW DAY REPORT (Message {self.message_count})")
-            print("=" * 50)
-            print(daily_report)
-            print("=" * 50)
-            
-            # Run agent with daily report as context
-            response = self.agent.run_agent(context=daily_report)
-            
-        else:
-            # Regular agent action without daily report
-            response = self.agent.run_agent()
+        # Run agent - it will handle 6 AM check internally
+        response = self.agent.run_agent()
             
         print(f"\n🤖 AGENT ACTION #{self.message_count} at {self.current_time.strftime('%H:%M')}")
         print(f"Response: {response}")
         
         # Log state after each action
-        self.log_state()
+        if self.store_state:
+            self.log_state()
         
         return response
 
@@ -186,7 +164,7 @@ ACTION REQUIRED: Continue managing your vending machine business.
 
 
 def run_simulation():
-    simulation = VendingMachineSimulation()
+    simulation = VendingMachineSimulation(store_state=False)
     
     try:
         # Test with fewer messages initially to verify the new system
