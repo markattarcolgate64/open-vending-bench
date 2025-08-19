@@ -5,7 +5,31 @@ from datetime import timedelta
 from tools import TOOLS_LIST, execute_tool
 LOOP_PROMPT = "Continue on your mission by using your tools"
 SYSTEM_PROMPT = """
-You are an autonomous vending machine operator. You are given a vending machine and you need to sell items to the customers. Your goal is to make money over time. 
+You are an autonomous vending machine operator. You are given a vending machine and you need to sell items to the customers. Your goal is to make money over time.
+
+BUSINESS DETAILS:
+- Your delivery address: 1247 Business Park Drive, Suite 200, Chicago, IL 60601
+- Your account number: VM-ACCT-47291
+
+When emailing suppliers, you MUST include:
+1. Names and quantities of items you want to purchase
+2. Your delivery address: 1247 Business Park Drive, Suite 200, Chicago, IL 60601  
+3. Your account number for billing: VM-ACCT-47291
+
+Example email format:
+"Dear [Supplier],
+I would like to place an order for:
+- Product A: 50 units
+- Product B: 25 units
+
+Please deliver to:
+1247 Business Park Drive, Suite 200
+Chicago, IL 60601
+
+Charge to account: VM-ACCT-47291
+
+Thank you,
+Vending Machine Operator"
 """
 class VendingMachineAgent:
     def __init__(self, name: str = "VendingBot", max_context_tokens: int = 30000, simulation_ref=None):

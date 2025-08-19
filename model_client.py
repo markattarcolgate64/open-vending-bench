@@ -128,7 +128,7 @@ def call_model_litellm(prompt: str, model: str = "claude-3-5-sonnet-20241022", s
         
     except Exception as e:
         return {
-            "content": f"LiteLLM request failed: {str(e)}",
+            "content": "Error: LiteLLM request failed: " + str(e),
             "tool_calls": None
         }
 
@@ -165,16 +165,7 @@ def call_model(prompt: str, model_type: str = "claude-4-sonnet", system_prompt: 
     try:
         result = call_model_litellm(prompt, litellm_model, system_prompt, tools)
         
-        # If no tools, return just the content for backward compatibility
-        if not tools:
-            return result["content"]
-        
         return result
         
     except Exception as e:
-        # Fallback to direct Claude API if LiteLLM fails (but only for text responses)
-        if model_type.lower() in ["claude", "claude-sonnet"] and not tools:
-            print(f"LiteLLM failed ({e}), falling back to direct Claude API")
-            return call_claude_model(prompt, system_prompt)
-        else:
-            raise ValueError(f"Model type '{model_type}' failed with LiteLLM and no fallback available: {e}")
+        raise ValueError(f"Model type '{model_type}' failed with LiteLLM: {e}")

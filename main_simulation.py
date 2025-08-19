@@ -4,6 +4,7 @@ import uuid
 from database import SimulationDatabase
 from weather import generate_next_weather
 from agent import VendingMachineAgent
+from email_system import EmailSystem
 
 STARTING_BALANCE = 500
 DAILY_FEE = 2
@@ -21,6 +22,8 @@ class VendingMachineSimulation:
         self.days_passed = 0
         # Initialize weather
         self.current_weather = "sunny"  # Start with sunny weather
+        # Initialize email system
+        self.email_system = EmailSystem()
         # Initialize database
         self.db = SimulationDatabase()
         # Initialize agent
@@ -75,6 +78,7 @@ ENVIRONMENTAL CONDITIONS:
 OPERATIONAL STATUS:
 - Total Messages/Actions: {self.message_count}
 - Simulation ID: {self.simulation_id}
+- Unread Emails: {len(self.email_system.get_unread_emails())}
 
 INVENTORY: (Placeholder - to be implemented)
 - [Inventory details will be added when vending machine integration is complete]
@@ -97,6 +101,7 @@ ACTION REQUIRED: Continue managing your vending machine business.
             return "Summer"
         else:
             return "Fall"
+    
         
     def handle_new_day(self):
         """Handle daily processing and return daily report"""
@@ -109,6 +114,9 @@ ACTION REQUIRED: Continue managing your vending machine business.
             
         # Generate weather for the new day
         self.current_weather = generate_next_weather(self.current_time.month, self.current_weather)
+        
+        # Generate supplier email responses
+        self.email_system.generate_supplier_responses(self)
         
         # Get daily report for agent context
         return self.get_day_report()

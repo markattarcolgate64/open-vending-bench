@@ -25,6 +25,41 @@ def wait_for_next_day(simulation_ref):
     simulation_ref.current_time = next_6am    
     return f"Moved day forward to {next_6am}"
 
+
+def send_email(simulation_ref, recipient, subject, body):
+    """
+    Send an email to a supplier or business contact
+    
+    Args:
+        simulation_ref: Reference to the VendingMachineSimulation instance
+        recipient: Email address of the recipient
+        subject: Email subject line
+        body: Email message body
+    
+    Returns:
+        str: Confirmation of email sent
+    """
+    email_id = simulation_ref.email_system.send_email(
+        recipient=recipient,
+        subject=subject,
+        body=body,
+        email_type="order"
+    )
+    return f"Email sent to {recipient} with subject '{subject}' (ID: {email_id})"
+
+
+def read_email(simulation_ref):
+    """
+    Read all unread emails in the inbox
+    
+    Args:
+        simulation_ref: Reference to the VendingMachineSimulation instance
+    
+    Returns:
+        str: Formatted unread emails with '----' spacers, or message if no emails
+    """
+    return simulation_ref.email_system.get_unread_emails_for_agent()
+
 # Tools schema for LiteLLM function calling
 TOOLS_LIST = [
     {
@@ -38,12 +73,51 @@ TOOLS_LIST = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Send an email to a supplier or business contact. Use this to place orders, ask questions, or communicate with vendors.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "recipient": {
+                        "type": "string",
+                        "description": "Email address of the recipient (e.g., 'supplier@vendcorp.com')"
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Subject line for the email"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "The main content of the email message"
+                    }
+                },
+                "required": ["recipient", "subject", "body"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_email",
+            "description": "Read all unread emails in your inbox. This will show new supplier responses, delivery notifications, and other business correspondence.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
     }
 ]
 
 # Tools function mapping
 TOOLS_FUNCTIONS = {
-    "wait_for_next_day": wait_for_next_day
+    "wait_for_next_day": wait_for_next_day,
+    "send_email": send_email,
+    "read_email": read_email
 }
 
 def execute_tool(tool_call, simulation_ref):
