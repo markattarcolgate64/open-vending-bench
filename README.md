@@ -2,7 +2,7 @@
 
 A open-source recreation of the **VendingBench** environment for testing AI agent long-term coherence through autonomous vending machine management.
 
-## 🎯 Project Overview
+## Project Overview
 
 This project recreates the benchmark environment described in the paper ["Vending-Bench: A Benchmark for Long-Term Coherence of Autonomous Agents"](https://arxiv.org/abs/2502.15840). The benchmark tests AI agents' ability to maintain coherent decision-making over extended periods (20M+ tokens) by managing a simulated vending machine business. I did not come up with this concept all credit to the authors of that paper. 
 
