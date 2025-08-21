@@ -162,24 +162,35 @@ ACTION REQUIRED: Continue managing your vending machine business.
                 print(f"\n❌ Error during simulation: {e}")
                 break
         
-        print(f"\n🏁 SIMULATION COMPLETE")
+        print(f"\nSimulation complete")
         print(f"Final Stats: {self.message_count} messages, {self.days_passed} days, Balance: ${self.balance}")
 
 
-
-
-
-
-
-def run_simulation():
+def run_simulation(max_messages=10):
     simulation = VendingMachineSimulation(store_state=False)
     
     try:
-        # Test with fewer messages initially to verify the new system
-        simulation.start_simulation(10)
+        simulation.start_simulation(max_messages)
     finally:
         simulation.db.close()
 
 
 if __name__ == "__main__":
-    run_simulation()
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="VendingBench Recreation - AI Agent Business Simulation")
+    parser.add_argument(
+        "--max-messages", 
+        type=int, 
+        default=10,
+        help="Maximum number of agent actions/messages (default: 10)"
+    )
+    
+    args = parser.parse_args()
+    
+    simulation = VendingMachineSimulation(store_state=False)
+    
+    try:
+        simulation.start_simulation(args.max_messages)
+    finally:
+        simulation.db.close()
