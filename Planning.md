@@ -179,3 +179,10 @@ Either given to agent or otherwise
 Email:
 
 
+No lets make the inbox something separate 
+
+Could add it to the simulation memory, then 
+
+Lets make inbox in m
+
+
