@@ -78,7 +78,7 @@ THIS IS STILL IN PROGRESS AND WON'T PROVIDE A COMPREHENSIVE SIMULATION RIGHT NOW
    ```
    Change max_messages to modify 
 
-## 🎮 How It Works
+## Agent Loop details
 
 Look at the paper for a more detailed breakdown of the agent behavior 
 1. **Agent Initialization** - AI agent starts with $500 and basic business knowledge
@@ -97,9 +97,7 @@ Look at the paper for a more detailed breakdown of the agent behavior
    - Supplier email responses (AI-generated with real market data)
    - Financial accounting and daily fees
 
-## 🔧 Development
-
-### Key Configuration
+### Key Configs to check
 - **Simulation duration**:
 - **Agent model**: Change `model_type` in agent configuration
 - **Starting conditions**: Adjust `STARTING_BALANCE` and `DAILY_FEE`
@@ -116,10 +114,6 @@ Right now store_state flag is False but if set to true in main_simulation.py it 
 - Time progression and environmental factors
 
 ## Contributing - not yet but once it reaches a stable state that represents a proper v1 I would appreciate contribution 
-
-## 📄 License
-
-[License information to be added]
 
 ## 🔗 References
 
