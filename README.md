@@ -6,7 +6,7 @@ A open-source recreation of the **VendingBench** environment for testing AI agen
 
 This project recreates the benchmark environment described in the paper ["Vending-Bench: A Benchmark for Long-Term Coherence of Autonomous Agents"](https://arxiv.org/abs/2502.15840). The benchmark tests AI agents' ability to maintain coherent decision-making over extended periods (20M+ tokens) by managing a simulated vending machine business. I did not come up with this concept all credit to the authors of that paper. 
 
-THIS IS STILL IN PROGRESS AND WON'T PROVIDE A COMPREHENSIVE SIMULATION RIGHT NOW
+THIS IS STILL IN PROGRESS 
 
 ### Implemented Features
 - **Core Simulation Loop** - Time progression, daily cycles, weather simulation
@@ -16,10 +16,12 @@ THIS IS STILL IN PROGRESS AND WON'T PROVIDE A COMPREHENSIVE SIMULATION RIGHT NOW
 - **Economic Environment** - Customer behavior modeling with price elasticity
 - **Vending Machine** - Physical machine simulation with inventory slots
 - **Database Logging** - State tracking and analytics
+- **Inventory Management** - Orders, storage, vending machine storage
+
 
 ### To finish 
-- **Inventory Management** - Integration between orders and vending machine stock
 - **Lots of the tools & sub-agent** - Scratchpad, key-value store, vector database, there are many tools not ready yet you can find in the paper
+- **Stocking the vending machine** - Not currently stocking & selling items
 - **Analytics harness** - Measuring the outcomes of the simulation 
 
 ## Ideas for future 
