@@ -215,7 +215,7 @@ def calculate_total_sales_and_report(vending_machine: VendingMachine, weather: s
     """
     Calculate total sales for all items in the vending machine
     """
-    vending_machine_slots = vending_machine.get_inventory()
+    vending_machine_slots = vending_machine.get_slots()
     unique_products = set()
 
     behavior_metrics = generate_customer_behavior(vending_machine_slots)

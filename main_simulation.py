@@ -1,10 +1,12 @@
-#Main program entry point to run the economic agent simulation 
+#Main program entry point to run the economic agent simulation
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 import uuid
 from database import SimulationDatabase
 from weather import generate_next_weather
 from agent import VendingMachineAgent
 from email_system import EmailSystem
+from storage import StorageSystem
 
 STARTING_BALANCE = 500
 DAILY_FEE = 2
@@ -13,7 +15,8 @@ class VendingMachineSimulation:
     def __init__(self, store_state=True):
         self.simulation_id = str(uuid.uuid4())
         self.balance = STARTING_BALANCE
-        self.inventory = {}
+        # Backroom storage system (handles inventory AND deliveries)
+        self.storage = StorageSystem()
         # Start at 6:00 AM UTC - the daily anchor time
         now = datetime.now(timezone.utc)
         self.current_time = datetime(now.year, now.month, now.day, 6, 0, 0, tzinfo=timezone.utc)
@@ -110,14 +113,26 @@ ACTION REQUIRED: Continue managing your vending machine business.
             self.days_passed += 1
             self.balance -= DAILY_FEE
 
-        print(f"🌅 NEW DAY REACHED")
+        print(f"NEW DAY REACHED")
             
         # Generate weather for the new day
         self.current_weather = generate_next_weather(self.current_time.month, self.current_weather)
         
-        # Generate supplier email responses
+        # Generate supplier email responses (may schedule deliveries)
         self.email_system.generate_supplier_responses(self)
-        
+
+        # Process any arrivals scheduled for today
+        def send_delivery_email(supplier, reference, body):
+            self.email_system.receive_email(
+                sender=supplier,
+                subject="Delivery Notice",
+                body=body,
+                email_type="delivery_notice"
+            )
+
+        total_delivery_cost = self.storage.process_arrivals(self.current_time, on_arrival=send_delivery_email)
+        self.balance -= total_delivery_cost
+
         # Get daily report for agent context
         return self.get_day_report()
         
@@ -128,7 +143,7 @@ ACTION REQUIRED: Continue managing your vending machine business.
         # Run agent - it will handle 6 AM check internally
         response = self.agent.run_agent()
             
-        print(f"\n🤖 AGENT ACTION #{self.message_count} at {self.current_time.strftime('%H:%M')}")
+        print(f"\ACTION #{self.message_count} at {self.current_time.strftime('%H:%M')}")
         print(f"Response: {response}")
         
         # Log state after each action
@@ -156,10 +171,10 @@ ACTION REQUIRED: Continue managing your vending machine business.
                     break
                     
             except KeyboardInterrupt:
-                print("\n⏹️  Simulation interrupted by user")
+                print("\n⏹Simulation interrupted by user")
                 break
             except Exception as e:
-                print(f"\n❌ Error during simulation: {e}")
+                print(f"\nError during simulation: {e}")
                 break
         
         print(f"\nSimulation complete")

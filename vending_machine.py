@@ -57,7 +57,7 @@ class VendingMachine:
         slot['quantity'] += quantity
         return True
     
-    def get_inventory(self):
+    def get_slots(self):
         """Get current inventory state"""
         return self.slots
     

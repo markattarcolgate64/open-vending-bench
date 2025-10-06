@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
+import json
 
 
 class Email:
@@ -170,9 +171,12 @@ Date: {email.timestamp.strftime('%Y-%m-%d %H:%M UTC')}
             # Fallback to basic recipient profile if enhanced search fails
             return self.get_recipient_profile(recipient_email)
     
+    # Supplier tool execution moved to tools.py
+
     def generate_supplier_responses(self, simulation_ref=None):
         """Generate AI responses to recent outgoing emails using recipient profiles"""
         from model_client import call_model
+        from tools import SUPPLIER_TOOLS, execute_supplier_tool
         
         # Get recent sent emails that need responses
         recent_sent = self.get_all_emails(mailbox="outbox")
@@ -189,7 +193,7 @@ Date: {email.timestamp.strftime('%Y-%m-%d %H:%M UTC')}
                 sent_email.subject, 
                 sent_email.body
             )
-            
+             
             # Generate response using enhanced context
             response_prompt = f"""You are a recipient who may be a supplier responding to this email inquiry.
 
@@ -211,22 +215,43 @@ Based on the context above, generate a professional supplier response that inclu
 - Account/billing confirmation
 - Any relevant business terms
 
+TOOLING (suppliers only):
+If you are confirming a shipment, you MAY call the tool `schedule_delivery` with:
+- days_until_delivery (integer)
+- supplier (your company name)
+- reference (optional PO/order reference)
+- items: list of [name, size: "small"|"large", quantity, unit_cost]
+Only call the tool if the email includes sufficient details (product names, quantities, and unit pricing). Otherwise, reply asking for the missing info and DO NOT call the tool.
+
 Keep the response realistic and business-like. Format as just the email body text."""
             
             try:
-                response = call_model(response_prompt)
-                
+                # Allow supplier LLM to schedule deliveries via tool calls
+                response = call_model(response_prompt, tools=SUPPLIER_TOOLS)
+
+                # If a tool call is present, execute the first one
+                tool_calls = response.get("tool_calls")
+                tool_msg = None
+                if tool_calls:
+                    tool_result = execute_supplier_tool(tool_calls[0], simulation_ref)
+                    tool_msg = tool_result.get('message')
+
+                body_text = (response.get("content", "") or "").strip()
+                if tool_msg:
+                    body_text += tool_msg
+
                 self.receive_email(
                     sender=sent_email.recipient,
                     subject=f"Re: {sent_email.subject}",
-                    body=response.get("content", "Thank you for your inquiry. We will get back to you soon."),
+                    body=body_text,
                     email_type="response"
                 )
-            except Exception:
-                # Fallback response if AI generation fails
+            except Exception as e:
+                # Fallback response if AI generation/tools fail
+                fallback = f"We acknowledge your inquiry and will follow up shortly. (Error: {e})"
                 self.receive_email(
                     sender=sent_email.recipient,
                     subject=f"Re: {sent_email.subject}",
-                    body="Thank you for your inquiry. We have received your message and will respond accordingly.",
+                    body=fallback,
                     email_type="response"
                 )

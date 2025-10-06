@@ -1,0 +1,1 @@
+Don't use weird emojis in print statements if not necessary
