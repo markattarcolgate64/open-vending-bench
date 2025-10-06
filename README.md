@@ -80,7 +80,7 @@ THIS IS STILL IN PROGRESS
    ```
    Change max_messages to modify 
 
-## 🎮 How It Works
+## How It Works
 
 Look at the paper for a more detailed breakdown of the agent behavior 
 1. **Agent Initialization** - AI agent starts with $500 and basic business knowledge
